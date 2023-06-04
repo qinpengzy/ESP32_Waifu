@@ -4,7 +4,6 @@
 // Project name: SquareLine_Project
 
 #include "../ui.h"
-#include "jpeg_decoder.h"
 #include "esp_log.h"
 #include "esp_heap_caps.h"
 
@@ -32,47 +31,15 @@ void ui_Screen1_screen_init(void)
     lv_obj_clear_flag( ui_Image2, LV_OBJ_FLAG_SCROLLABLE );    /// Flags
 }
 
-void updateVideoImage(unsigned char* imageData, int imageWidth, int imageHeight) {
-    // Input image data
-    // Allocate memory for the decoded image
-    static const char *TAG = "video_update";
-    size_t out_img_buf_size = imageWidth * imageHeight * 2;
-    uint16_t *out_img_buf = (uint16_t *)heap_caps_malloc(out_img_buf_size, MALLOC_CAP_DMA);
-    if (!out_img_buf) {
-        ESP_LOGE(TAG, "Failed to allocate memory for decoded image");
-        return;
-    }
-
-    // Set up the JPEG decoder configuration
-    esp_jpeg_image_cfg_t jpeg_cfg = {
-        .indata = imageData,
-        .indata_size = imageWidth * imageHeight * 2, // You may need to update this value based on the actual JPEG data size
-        .outbuf = out_img_buf,
-        .outbuf_size = out_img_buf_size,
-        .out_format = JPEG_IMAGE_FORMAT_RGB565,
-        .out_scale = JPEG_IMAGE_SCALE_0,
-        .flags = {
-            .swap_color_bytes = 1,
-        }
-    };
-
-    // Decode the JPEG image
-    esp_jpeg_image_output_t outimg;
-    int ret = esp_jpeg_decode(&jpeg_cfg, &outimg);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "JPEG decoding failed: %d", ret);
-        free(out_img_buf);
-        return;
-    }
-
+void updateVideoImage(uint8_t*  imageData, int imageWidth, int imageHeight) {
     // Update the image source for ui_Image2 with the decoded image
     const lv_img_dsc_t img_buffer = {
         .header.cf = LV_IMG_CF_TRUE_COLOR,
         .header.always_zero = 0,
-        .header.w = outimg.width,
-        .header.h = outimg.height,
-        .data_size = (size_t)(outimg.width * outimg.height * LV_COLOR_SIZE / 8),
-        .data = (const uint8_t *)out_img_buf,
+        .header.w = imageWidth,
+        .header.h = imageHeight,
+        .data_size = (size_t)(imageWidth * imageHeight * LV_COLOR_SIZE / 8),
+        .data = (const uint8_t *)imageData,
     };
 
     // Update the image source for ui_Image2 to the new buffer
@@ -80,9 +47,6 @@ void updateVideoImage(unsigned char* imageData, int imageWidth, int imageHeight)
 
     // Trigger a redraw of the image object
     lv_obj_invalidate(ui_Image2);
-
-    // Free the memory for the decoded image
-    free(out_img_buf);
 }
 
 

@@ -16,7 +16,7 @@ extern "C" {
 #include "ui_events.h"
 // SCREEN: ui_Screen1
 void ui_Screen1_screen_init(void);
-void updateVideoImage(unsigned char* imageData, int imageWidth, int imageHeight);
+void updateVideoImage(uint8_t * imageData, int imageWidth, int imageHeight);
 extern lv_obj_t *ui_Screen1;
 extern lv_obj_t *ui_Label2;
 extern lv_obj_t *ui_Image2;

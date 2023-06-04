@@ -10,7 +10,7 @@
 
 // SCREEN: ui_Screen1
 void ui_Screen1_screen_init(void);
-void updateVideoImage(unsigned char* imageData, int imageWidth, int imageHeight);
+void updateVideoImage(uint8_t * imageData, int imageWidth, int imageHeight);
 lv_obj_t *ui_Screen1;
 lv_obj_t *ui_Label2;
 lv_obj_t *ui_Image2;

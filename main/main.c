@@ -165,6 +165,6 @@ void app_main(void)
     }
     
     xTaskCreate(video_recv_task, "video_recv_task", 8192, NULL, 5, NULL);
-    xTaskCreatePinnedToCore(gui_task, "gui task", 1024 * 4, NULL, 1, NULL, 0);
+    xTaskCreate(gui_task, "gui task", 4096, NULL, 1, NULL);
     
 }

@@ -7,12 +7,18 @@
 
 #include "lvgl_helpers.h"
 #include "esp_freertos_hooks.h"
+
+#include "esp_system.h"
 #include "esp_log.h"
 
 #include "lvglui_ili9341.h"
 #include "ui/ui.h"
 
+#include "jpeg_decoder.h"
+
 bool ui_updated = false;   // UI 更新标志位
+
+static const char *TAG = "lvgl_ui";
 
 //screen
 static void lv_tick_task(void *arg)
@@ -87,10 +93,6 @@ void gui_task(void *arg)
    lv_color_t *buf1 = heap_caps_malloc(DISP_BUF_SIZE * 2, MALLOC_CAP_DMA);
    lv_color_t *buf2 = heap_caps_malloc(DISP_BUF_SIZE * 2, MALLOC_CAP_DMA);
 
-   // lv_color_t *buf1 = (lv_color_t *)heap_caps_malloc(DISP_BUF_SIZE * 2, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-	// lv_color_t *buf2 = (lv_color_t *)heap_caps_malloc(DISP_BUF_SIZE * 2, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-
-
    lv_disp_draw_buf_init(&draw_buf, buf1, buf2, DLV_HOR_RES_MAX * DLV_VER_RES_MAX); /*Initialize the display buffer*/
 
    static lv_disp_drv_t disp_drv;         /*A variable to hold the drivers. Must be static or global.*/
@@ -116,19 +118,46 @@ void gui_task(void *arg)
 	esp_timer_handle_t periodic_timer;
 	ESP_ERROR_CHECK(esp_timer_create(&periodic_timer_args, &periodic_timer));
 	ESP_ERROR_CHECK(esp_timer_start_periodic(periodic_timer, 10 * 1000));
-    //lv_demo_stress();
-    // lv_example_qrcode_1();
-    //lv_example_ime_pinyin_1();
-    ui_init();
+   ui_init();
 
+   size_t freeHeapSize = esp_get_free_heap_size();
+   ESP_LOGI(TAG, "剩余内存大小：%d 字节", freeHeapSize);
+
+   size_t out_img_buf_size = 50000;
+   uint8_t *out_img_buf = (uint8_t *)heap_caps_malloc(out_img_buf_size, MALLOC_CAP_DMA);
+   if (!out_img_buf) {
+      ESP_LOGE(TAG, "Failed to allocate memory for decoded image");
+   }
+
+   // Decode the JPEG image
+   esp_jpeg_image_output_t outimg;
 
 
    while (1)
    {
       // 尝试接收队列中的图片
       if (xQueueReceive(queue, &src, 0) == pdTRUE) {  
-         updateVideoImage(src.image_data, src.width, src.height);
          ui_updated = true;     // 设置 UI 更新标志位
+
+         // Set up the JPEG decoder configuration
+         esp_jpeg_image_cfg_t jpeg_cfg = {
+            .indata = src.image_data,
+            .indata_size = src.width * src.height * 2, // You may need to update this value based on the actual JPEG data size
+            .outbuf = out_img_buf,
+            .outbuf_size = out_img_buf_size,
+            .out_format = JPEG_IMAGE_FORMAT_RGB565,
+            .out_scale = JPEG_IMAGE_SCALE_0,
+            .flags = {
+                  .swap_color_bytes = 1,
+            }
+         };
+
+
+         int ret = esp_jpeg_decode(&jpeg_cfg, &outimg);
+         if (ret != ESP_OK) {
+            ESP_LOGE(TAG, "JPEG decoding failed: %d", ret);
+         }
+         updateVideoImage(out_img_buf, src.width, src.height);
       }
 
       /* Delay 1 tick (assumes FreeRTOS tick is 10ms */
